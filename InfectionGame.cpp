@@ -2,46 +2,38 @@
 //
 
 #include <iostream>
-#include <map>
-#include <cstdlib>
 
 using std::cout;
 using std::cin;
-using std::map;
 
 char playground[36]; // игровое поле
-int adjacencyTB[36][36]; //таблица смежности
-int allowTB[36][36][2]; // таблица разрешеннных ходов
-int depth; // максимальное количество оставшихся ходов
-map<char, int> score; // очки 
+int allowTB[36][36]; // таблица разрешеннных ходов
+int depth = 2; // максимальное количество оставшихся ходов
+int score[2]; // очки(G, B)
+int move[2]; // ход(откуда, куда) // всегда допустим
 
-struct move {
-	int parentPos;
-	int newPos;
-};
 
-void makeAdjacencyTB() {
+void makeAllowTB() {
 	for (int i = 0; i < 36; ++i)
 		for(int j = 0; j < 36; ++j)
 			if (i == j)
-				adjacencyTB[i][j] = 0;
+				allowTB[i][j] = 0;
 			else {
 				int x1 = i / 6;
 				int x2 = j / 6;
 				int y1 = i % 6;
 				int y2 = j % 6;
 				if (abs(x2 - x1) <= 1 && abs(y2 - y1) <= 1)
-					adjacencyTB[i][j] = 1;
+					allowTB[i][j] = 1;
+				else if (abs(x2 - x1) <= 2 && abs(y2 - y1) <= 2)
+					allowTB[i][j] = 2;
 				else
-					adjacencyTB[i][j] = 0;
+					allowTB[i][j] = 0;
 				
 				//adjacencyTB[i][j] = abs(i - j) / 6 <= 1 && abs(i - j) % 6 <= 1 ? 1 : 0;
 			}
 }
 
-void makeAllowTB() {
-
-}
 
 // печать игрового поля
 void printPlayground() {
@@ -53,16 +45,25 @@ void printPlayground() {
 	
 	for (int i = 0; i < 6; ++i) {
 		cout << i << "  ";
-		for (int j = 0; j < 6; ++j)
-			cout << playground[i * 6 + j] << ' ';
+		for (int j = 0; j < 6; ++j) {
+			char curChar;
+			if (playground[i * 6 + j] == 0)
+				curChar = 'G';
+			else if (playground[i * 6 + j] == 1)
+				curChar = 'B';
+			else
+				curChar = '*';
+				cout << curChar << ' ';
+		}
 		cout << '\n';
 	}
 	cout << '\n';
 }
 
 void printMove(char player) {
-	cout << "########" << '\n';
-	if (player == 'G')
+	cout << "GREEN Score " << score[0] <<'\n';
+	cout << "BLUE Score " << score[1] << '\n';
+	if (player == 0)
 		cout << "GREEN Move" << '\n';
 	else
 		cout << "BLUE Move" << '\n';
@@ -70,101 +71,179 @@ void printMove(char player) {
 }
 
 // сделать ход из parentPos в newPos
-void makeMove(char player, int parentPos, int newPos) {
-	char enemy = player == 'G' ? 'B' : 'G';
-	if (adjacencyTB[parentPos][newPos] != 1) {
-		playground[parentPos] = '*';
-		depth += 1;
-		if (score[player] != 0)
-			score[player] -= 1;
+void makeMove(char player) {
+	char enemy = player == 1 ? 0 : 1;
+	if (allowTB[move[0]][move[1]] == 1) {
+		playground[move[1]] = player;
+		score[player] += 1;
+	}
+	else {
+		playground[move[0]] = '*';
+		playground[move[1]] = player;
 	}
 	
-	playground[newPos] = player;
-	depth -= 1;
-	score[player] += 1;
-
 	for (int i = 0; i < 36; ++i)
-		if (playground[i] != '*' && adjacencyTB[newPos][i] == 1) {
-			if (playground[i] == enemy)
-				score[enemy] -= 1;
+		if (playground[i] == enemy && allowTB[move[1]][i] == 1) {
 			playground[i] = player;
-			depth -= 1;
 			score[player] += 1;
+			score[enemy] -= 1;
 		}
 }
 
-move inputMove() {
-	move result;
+void inputMove() {
 	int i, j;
 	cin >> i >> j;
-	result.parentPos = i * 6 + j;
+	move[0] = i * 6 + j;
 	cin >> i >> j;
-	result.newPos = i * 6 + j;
-	return result;
+	move[1] = i * 6 + j;
 }
 
-move randomMove(char player) {
-	int parent = rand() % 36;
-	while (playground[parent] != player)
-		parent = rand() % 36;
-	int newPos = rand() % 36;
-	while(playground[newPos] != '*')
-		newPos = rand() % 36;
 
-	return move{parent, newPos};
+int value(char* pg, char player) {
+	int res = 0;
+	for (int i = 0; i < 36; ++i)
+		if (pg[i] == player)
+			++res;
+	return res;
 }
+
+void temp_move(char* pg, char player, int x, int y) {
+	char enemy = player == 1 ? 0 : 1;
+	if (allowTB[x][y] == 1) {
+		pg[y] = player;
+	}
+	else {
+		pg[x] = '*';
+		pg[y] = player;
+	}
+	for (int i = 0; i < 36; ++i)
+		if (pg[i] == enemy && allowTB[y][i] == 1)
+			pg[i] = player;
+}
+
+
+int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int alpha, int beta) {
+
+	if (depth == 0)
+		return value(temp_pg, player);
+
+	char save[36];
+	std::copy(temp_pg, temp_pg + 36, save);
+	char enemy = player == 1 ? 0 : 1;
+	if (isMaximizingPlayer) {
+		int bestVal = INT_MIN;
+		for (int i = 0; i < 36; ++i) {
+			if (temp_pg[i] == player) {
+				for (int j = 0; j < 36; ++j) {
+					if (i != j && temp_pg[j] == '*' && allowTB[i][j] != 0) {
+						temp_move(temp_pg, player, i, j);
+						int value = minimax(temp_pg, enemy, depth - 1, false, alpha, beta);
+						if (value > bestVal) {
+							bestVal = value;
+							move[0] = i;
+							move[1] = j;
+						}
+						if (alpha > bestVal)
+							alpha = bestVal;
+						if (beta <= alpha)
+							break;
+						std::copy(save, save + 36, temp_pg);
+					}
+				}
+			}
+		}
+		return bestVal;
+	}
+	else {
+		int bestVal = INT_MAX;
+		for (int i = 0; i < 36; ++i) {
+			if (temp_pg[i] == player) {
+				for (int j = 0; j < 36; ++j) {
+					if (i != j && temp_pg[j] == '*' && allowTB[i][j] != 0) {
+						temp_move(temp_pg, player, i, j);
+						int value = minimax(temp_pg, enemy, depth - 1, true, alpha, beta);
+						if (value < bestVal) {
+							bestVal = value;
+						}
+						if (alpha < bestVal)
+							alpha = bestVal;
+						if (beta <= alpha)
+							break;
+						std::copy(save, save + 36, temp_pg);
+					}
+				}
+			}
+		}
+		return bestVal;
+	}
+}
+
+
+void AIMove(char player) {
+	char temp[36];
+	std::copy(playground, playground + 36, temp);
+	minimax(temp, player, 2, true, INT_MIN, INT_MAX);
+	std::cout << "I   "<< move[0] <<"  J  " << move[1] << '\n';
+}
+
 
 void startGame(char humanPlayer, bool firstMove) {
 	for (int i = 0; i < 36; ++i) {
 		playground[i] = '*';
 	}
 
-	char AI = humanPlayer == 'B' ? 'G' : 'B';
+	char human, AI;
+	if (humanPlayer == 'G') {
+		human = 0;
+		AI = 1;
+	}
+	else {
+		human = 1;
+		AI = 0;
+	}
 	
 	// начальная расстановка
-	playground[0] = 'G';
-	playground[5] = 'B';
-	playground[30] = 'B';
-	playground[35] = 'G';
+	playground[0] = 0;
+	playground[5] = 1;
+	playground[30] = 1;
+	playground[35] = 0;
 	printPlayground();
 
-	score = map<char, int>();
-	score['G'] = 2;
-	score['B'] = 2;
+	score[human] = 2;
+	score[AI] = 2;
 	depth = 32;
 
-	move currentMove;
-	if (firstMove) {
-		currentMove = randomMove(humanPlayer);
-		makeMove(humanPlayer, currentMove.parentPos, currentMove.newPos);
-		printMove(humanPlayer);
+	if (firstMove) { // первый ход человек
+		AIMove(human);
+		makeMove(human);
+		printMove(human);
 	}
 	
 	while (depth != 0 && score[AI] != 0) {
-		currentMove = randomMove(AI);
-		makeMove(AI, currentMove.parentPos, currentMove.newPos);
+		AIMove(AI);
+		makeMove(AI);
 		printMove(AI);
-		if (depth == 0 || score[humanPlayer] == 0)
+		if (depth == 0 || score[human] == 0)
 			break;
-		currentMove = randomMove(humanPlayer);
-		makeMove(humanPlayer, currentMove.parentPos, currentMove.newPos);
-		printMove(humanPlayer);
+		AIMove(human);
+		makeMove(human);
+		printMove(human);
 	}
 
-	if (score[humanPlayer] > score[AI])
-		cout << "Человек одолел машину со счетом " << score[humanPlayer] << " : " << score[AI] << '\n';
+	if (score[human] > score[AI])
+		cout << "Human win " << score[human] << " : " << score[AI] << '\n';
 	else
-		cout << "Человечество проиграло... Счет " << score[humanPlayer] << " : " << score[AI] << '\n';
+		cout << "AI Win...  " << score[human] << " : " << score[AI] << '\n';
 }
 
 int main()
 {
-	makeAdjacencyTB();
+	makeAllowTB();
 	
 	/*
 	for (int i = 0; i < 36; ++i) {
 		for (int j = 0; j < 36; ++j)
-			cout << adjacencyTB[i][j] << ' ';
+			cout << allowTB[i][j] << ' ';
 		cout << '\n';
 	}*/
 
