@@ -9,9 +9,9 @@ using std::cin;
 
 char playground[36]; // игровое поле
 int allowTB[36][36]; // таблица разрешеннных ходов
-int depth = 2; // максимальное количество оставшихся ходов
 int score[2]; // очки(G, B)
 int move[2]; // ход(откуда, куда) // всегда допустим
+int d;
 
 
 void makeAllowTB() {
@@ -30,8 +30,6 @@ void makeAllowTB() {
 					allowTB[i][j] = 2;
 				else
 					allowTB[i][j] = 0;
-				
-				//adjacencyTB[i][j] = abs(i - j) / 6 <= 1 && abs(i - j) % 6 <= 1 ? 1 : 0;
 			}
 }
 
@@ -95,16 +93,22 @@ void inputMove(char player) {
 	int i, j;
 	cout << "Input from: ";
 	cin >> i >> j;
-	int t1 = i * 6 + j;
-	while (playground[t1] != player) {
+	int t = i * 6 + j;
+	while (playground[t] != player) {
 		cout << "Input from: ";
 		cin >> i >> j;
-		t1 = i * 6 + j;
+		t = i * 6 + j;
 	}
-	
-	move[0] = i * 6 + j;
+	move[0] = t;
+	cout << "Input dest: ";
 	cin >> i >> j;
-	move[1] = i * 6 + j;
+	t = i * 6 + j;
+	while (playground[t] != '*') {
+		cout << "Input dest: ";
+		cin >> i >> j;
+		t = i * 6 + j;
+	}
+	move[1] = t;
 }
 
 
@@ -148,19 +152,18 @@ int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int 
 						std::copy(save, save + 36, temp_pg);
 						if (value > bestVal) {
 							bestVal = value;
-							if (depth == 6) {
+							if (depth == d) {
 								move[0] = i;
 								move[1] = j;
 							}
 						}
 						if (bestVal > alpha)
 							alpha = bestVal;
-						if (beta <= alpha)
-							break;
-						
 					}
 				}
 			}
+			if (beta <= alpha)
+				break;	
 		}
 		return bestVal;
 	}
@@ -178,25 +181,25 @@ int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int 
 						}
 						if (bestVal < beta)
 							beta = bestVal;
-						if (beta <= alpha)
-							break;
-						
 					}
 				}
 			}
+			if (beta <= alpha)
+				break;
 		}
 		return bestVal;
 	}
 }
 
 
-void AIMove(char player) {
+void AIMove(char player, int depth) {
 	clock_t begin = clock();
 	char temp[36];
 	std::copy(playground, playground + 36, temp);
 	int t1 = move[0];
 	int t2 = move[1];
-	minimax(temp, player, 6, true, INT_MIN, INT_MAX);
+	d = depth;
+	minimax(temp, player, depth, true, INT_MIN, INT_MAX);
 	if (move[0] == t1 && move[1] == t2) {
 		move[0] = 0;
 		move[1] = 0;
@@ -247,23 +250,26 @@ void startGame(char player, bool firstMove) {
 
 	score[player1] = 2;
 	score[player2] = 2;
+	move[0] = 1;
 
 	if (firstMove) {
 		printCurrentPlayer(player1);
-		inputMove();
+		inputMove(player1);
+		//AIMove(player1, 6);
 		makeMove(player1);
 		printMove(player1);
 	}
 	
 	while (!isEnd()) {
 		printCurrentPlayer(player2);
-		AIMove(player2);
+		AIMove(player2, 6);
 		makeMove(player2);
 		printMove(player2);
 		if (isEnd())
 			break;
 		printCurrentPlayer(player1);
-		inputMove();
+		//AIMove(player1, 6);
+		inputMove(player1);
 		makeMove(player1);
 		printMove(player1);
 	}
