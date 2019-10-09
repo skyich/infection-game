@@ -2,6 +2,7 @@
 //
 
 #include <iostream>
+#include <ctime>
 
 using std::cout;
 using std::cin;
@@ -61,14 +62,14 @@ void printPlayground() {
 }
 
 void printMove(char player) {
-	cout << "GREEN Score " << score[0] <<'\n';
-	cout << "BLUE Score " << score[1] << '\n';
-	if (player == 0)
-		cout << "GREEN Move" << '\n';
-	else
-		cout << "BLUE Move" << '\n';
 	printPlayground();
 }
+
+void printCurrentPlayer(char player) {
+	char pl = player == 0 ? 'G' : 'B';
+	cout << pl << " move:" << '\n';
+}
+
 
 // сделать ход из parentPos в newPos
 void makeMove(char player) {
@@ -90,9 +91,17 @@ void makeMove(char player) {
 		}
 }
 
-void inputMove() {
+void inputMove(char player) {
 	int i, j;
+	cout << "Input from: ";
 	cin >> i >> j;
+	int t1 = i * 6 + j;
+	while (playground[t1] != player) {
+		cout << "Input from: ";
+		cin >> i >> j;
+		t1 = i * 6 + j;
+	}
+	
 	move[0] = i * 6 + j;
 	cin >> i >> j;
 	move[1] = i * 6 + j;
@@ -107,8 +116,7 @@ int value(char* pg, char player) {
 	return res;
 }
 
-void temp_move(char* pg, char player, int x, int y) {
-	char enemy = player == 1 ? 0 : 1;
+void temp_move(char* pg, char player, char enemy, int x, int y) {
 	if (allowTB[x][y] == 1) {
 		pg[y] = player;
 	}
@@ -123,7 +131,6 @@ void temp_move(char* pg, char player, int x, int y) {
 
 
 int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int alpha, int beta) {
-
 	if (depth == 0)
 		return value(temp_pg, player);
 
@@ -136,18 +143,21 @@ int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int 
 			if (temp_pg[i] == player) {
 				for (int j = 0; j < 36; ++j) {
 					if (i != j && temp_pg[j] == '*' && allowTB[i][j] != 0) {
-						temp_move(temp_pg, player, i, j);
+						temp_move(temp_pg, player, enemy, i, j);
 						int value = minimax(temp_pg, enemy, depth - 1, false, alpha, beta);
+						std::copy(save, save + 36, temp_pg);
 						if (value > bestVal) {
 							bestVal = value;
-							move[0] = i;
-							move[1] = j;
+							if (depth == 6) {
+								move[0] = i;
+								move[1] = j;
+							}
 						}
-						if (alpha > bestVal)
+						if (bestVal > alpha)
 							alpha = bestVal;
 						if (beta <= alpha)
 							break;
-						std::copy(save, save + 36, temp_pg);
+						
 					}
 				}
 			}
@@ -160,16 +170,17 @@ int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int 
 			if (temp_pg[i] == player) {
 				for (int j = 0; j < 36; ++j) {
 					if (i != j && temp_pg[j] == '*' && allowTB[i][j] != 0) {
-						temp_move(temp_pg, player, i, j);
+						temp_move(temp_pg, player, enemy, i, j);
 						int value = minimax(temp_pg, enemy, depth - 1, true, alpha, beta);
+						std::copy(save, save + 36, temp_pg);
 						if (value < bestVal) {
 							bestVal = value;
 						}
-						if (alpha < bestVal)
-							alpha = bestVal;
+						if (bestVal < beta)
+							beta = bestVal;
 						if (beta <= alpha)
 							break;
-						std::copy(save, save + 36, temp_pg);
+						
 					}
 				}
 			}
@@ -180,26 +191,51 @@ int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int 
 
 
 void AIMove(char player) {
+	clock_t begin = clock();
 	char temp[36];
 	std::copy(playground, playground + 36, temp);
-	minimax(temp, player, 2, true, INT_MIN, INT_MAX);
-	std::cout << "I   "<< move[0] <<"  J  " << move[1] << '\n';
+	int t1 = move[0];
+	int t2 = move[1];
+	minimax(temp, player, 6, true, INT_MIN, INT_MAX);
+	if (move[0] == t1 && move[1] == t2) {
+		move[0] = 0;
+		move[1] = 0;
+	}
+	
+	clock_t end = clock();
+	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	
+	char pl = player == 0 ? 'G' : 'B';
+	std::cout << pl << " AI\ni = "<< move[0] / 6 <<", j = " << move[0] % 6 << '\n';
+	std::cout << "i = "<< move[1] / 6 << ", j = " << move[1] % 6 << '\n';
+	std::cout << "Time: " << elapsed_secs << '\n';
+}
+
+bool isEnd() {
+	if (score[0] == 0 || score[1] == 0)
+		return true;
+	int res_score = score[0] + score[1];
+	if (res_score >= 36)
+		return true;
+	if (move[0] == 0 && move[1] == 0)
+		return true;
+	return false;
 }
 
 
-void startGame(char humanPlayer, bool firstMove) {
+void startGame(char player, bool firstMove) {
 	for (int i = 0; i < 36; ++i) {
 		playground[i] = '*';
 	}
 
-	char human, AI;
-	if (humanPlayer == 'G') {
-		human = 0;
-		AI = 1;
+	char player1, player2;
+	if (player == 'G') {
+		player1 = 0;
+		player2 = 1;
 	}
 	else {
-		human = 1;
-		AI = 0;
+		player1 = 1;
+		player2 = 0;
 	}
 	
 	// начальная расстановка
@@ -209,31 +245,34 @@ void startGame(char humanPlayer, bool firstMove) {
 	playground[35] = 0;
 	printPlayground();
 
-	score[human] = 2;
-	score[AI] = 2;
-	depth = 32;
+	score[player1] = 2;
+	score[player2] = 2;
 
-	if (firstMove) { // первый ход человек
-		AIMove(human);
-		makeMove(human);
-		printMove(human);
+	if (firstMove) {
+		printCurrentPlayer(player1);
+		inputMove();
+		makeMove(player1);
+		printMove(player1);
 	}
 	
-	while (depth != 0 && score[AI] != 0) {
-		AIMove(AI);
-		makeMove(AI);
-		printMove(AI);
-		if (depth == 0 || score[human] == 0)
+	while (!isEnd()) {
+		printCurrentPlayer(player2);
+		AIMove(player2);
+		makeMove(player2);
+		printMove(player2);
+		if (isEnd())
 			break;
-		AIMove(human);
-		makeMove(human);
-		printMove(human);
+		printCurrentPlayer(player1);
+		inputMove();
+		makeMove(player1);
+		printMove(player1);
 	}
 
-	if (score[human] > score[AI])
-		cout << "Human win " << score[human] << " : " << score[AI] << '\n';
+	char player2_ch = player == 'G' ? 'B' : 'G';
+	if (score[player1] > score[player2])
+		cout << player << " win. Score " << score[player1] << " : " << score[player2] << '\n';
 	else
-		cout << "AI Win...  " << score[human] << " : " << score[AI] << '\n';
+		cout << player2_ch << " win. Score " << score[player2] << " : " << score[player1] << '\n';
 }
 
 int main()
