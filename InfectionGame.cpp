@@ -7,23 +7,25 @@
 using std::cout;
 using std::cin;
 
-char playground[36]; // игровое поле
-int allowTB[36][36]; // таблица разрешеннных ходов
+const int GAME_SIZE = 49;
+const int PRINT_SIZE = 7;
+char playground[GAME_SIZE]; // игровое поле
+int allowTB[GAME_SIZE][GAME_SIZE]; // таблица разрешеннных ходов
 int score[2]; // очки(G, B)
 int move[2]; // ход(откуда, куда) // всегда допустим
 int d;
 
 
 void makeAllowTB() {
-	for (int i = 0; i < 36; ++i)
-		for(int j = 0; j < 36; ++j)
+	for (int i = 0; i < GAME_SIZE; ++i)
+		for(int j = 0; j < GAME_SIZE; ++j)
 			if (i == j)
 				allowTB[i][j] = 0;
 			else {
-				int x1 = i / 6;
-				int x2 = j / 6;
-				int y1 = i % 6;
-				int y2 = j % 6;
+				int x1 = i / PRINT_SIZE;
+				int x2 = j / PRINT_SIZE;
+				int y1 = i % PRINT_SIZE;
+				int y2 = j % PRINT_SIZE;
 				if (abs(x2 - x1) <= 1 && abs(y2 - y1) <= 1)
 					allowTB[i][j] = 1;
 				else if (abs(x2 - x1) <= 2 && abs(y2 - y1) <= 2)
@@ -37,18 +39,18 @@ void makeAllowTB() {
 // печать игрового поля
 void printPlayground() {
 	cout << "   ";
-	for (int i = 0; i < 6; ++i)
-		cout << i << ' ';
+	for (int i = 0; i < PRINT_SIZE; ++i)
+		cout << i + 1 << ' ';
 
 	cout << '\n';
 	
-	for (int i = 0; i < 6; ++i) {
-		cout << i << "  ";
-		for (int j = 0; j < 6; ++j) {
+	for (int i = 0; i < PRINT_SIZE; ++i) {
+		cout << i + 1 << "  ";
+		for (int j = 0; j < PRINT_SIZE; ++j) {
 			char curChar;
-			if (playground[i * 6 + j] == 0)
+			if (playground[i * PRINT_SIZE + j] == 0)
 				curChar = 'G';
-			else if (playground[i * 6 + j] == 1)
+			else if (playground[i * PRINT_SIZE + j] == 1)
 				curChar = 'B';
 			else
 				curChar = '*';
@@ -81,7 +83,7 @@ void makeMove(char player) {
 		playground[move[1]] = player;
 	}
 	
-	for (int i = 0; i < 36; ++i)
+	for (int i = 0; i < GAME_SIZE; ++i)
 		if (playground[i] == enemy && allowTB[move[1]][i] == 1) {
 			playground[i] = player;
 			score[player] += 1;
@@ -93,20 +95,28 @@ void inputMove(char player) {
 	int i, j;
 	cout << "Input from: ";
 	cin >> i >> j;
-	int t = i * 6 + j;
+	i -= 1;
+	j -= 1;
+	int t = i * PRINT_SIZE + j;
 	while (playground[t] != player) {
 		cout << "Input from: ";
 		cin >> i >> j;
-		t = i * 6 + j;
+		i -= 1;
+		j -= 1;
+		t = i * PRINT_SIZE + j;
 	}
 	move[0] = t;
 	cout << "Input dest: ";
 	cin >> i >> j;
-	t = i * 6 + j;
+	i -= 1;
+	j -= 1;
+	t = i * PRINT_SIZE + j;
 	while (playground[t] != '*') {
 		cout << "Input dest: ";
 		cin >> i >> j;
-		t = i * 6 + j;
+		i -= 1;
+		j -= 1;
+		t = i * PRINT_SIZE + j;
 	}
 	move[1] = t;
 }
@@ -114,7 +124,7 @@ void inputMove(char player) {
 
 int value(char* pg, char player) {
 	int res = 0;
-	for (int i = 0; i < 36; ++i)
+	for (int i = 0; i < GAME_SIZE; ++i)
 		if (pg[i] == player)
 			++res;
 	return res;
@@ -128,7 +138,7 @@ void temp_move(char* pg, char player, char enemy, int x, int y) {
 		pg[x] = '*';
 		pg[y] = player;
 	}
-	for (int i = 0; i < 36; ++i)
+	for (int i = 0; i < GAME_SIZE; ++i)
 		if (pg[i] == enemy && allowTB[y][i] == 1)
 			pg[i] = player;
 }
@@ -138,18 +148,19 @@ int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int 
 	if (depth == 0)
 		return value(temp_pg, player);
 
-	char save[36];
-	std::copy(temp_pg, temp_pg + 36, save);
+	char save[GAME_SIZE];
+	std::copy(temp_pg, temp_pg + GAME_SIZE, save);
 	char enemy = player == 1 ? 0 : 1;
+	//char enemy = player ^ 1;
 	if (isMaximizingPlayer) {
 		int bestVal = INT_MIN;
-		for (int i = 0; i < 36; ++i) {
+		for (int i = 0; i < GAME_SIZE; ++i) {
 			if (temp_pg[i] == player) {
-				for (int j = 0; j < 36; ++j) {
+				for (int j = 0; j < GAME_SIZE; ++j) {
 					if (i != j && temp_pg[j] == '*' && allowTB[i][j] != 0) {
 						temp_move(temp_pg, player, enemy, i, j);
 						int value = minimax(temp_pg, enemy, depth - 1, false, alpha, beta);
-						std::copy(save, save + 36, temp_pg);
+						std::copy(save, save + GAME_SIZE, temp_pg);
 						if (value > bestVal) {
 							bestVal = value;
 							if (depth == d) {
@@ -163,19 +174,19 @@ int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int 
 				}
 			}
 			if (beta <= alpha)
-				break;	
+				break;
 		}
 		return bestVal;
 	}
 	else {
 		int bestVal = INT_MAX;
-		for (int i = 0; i < 36; ++i) {
+		for (int i = 0; i < GAME_SIZE; ++i) {
 			if (temp_pg[i] == player) {
-				for (int j = 0; j < 36; ++j) {
+				for (int j = 0; j < GAME_SIZE; ++j) {
 					if (i != j && temp_pg[j] == '*' && allowTB[i][j] != 0) {
 						temp_move(temp_pg, player, enemy, i, j);
 						int value = minimax(temp_pg, enemy, depth - 1, true, alpha, beta);
-						std::copy(save, save + 36, temp_pg);
+						std::copy(save, save + GAME_SIZE, temp_pg);
 						if (value < bestVal) {
 							bestVal = value;
 						}
@@ -194,8 +205,8 @@ int minimax(char* temp_pg, char player, int depth, bool isMaximizingPlayer, int 
 
 void AIMove(char player, int depth) {
 	clock_t begin = clock();
-	char temp[36];
-	std::copy(playground, playground + 36, temp);
+	char temp[GAME_SIZE];
+	std::copy(playground, playground + GAME_SIZE, temp);
 	int t1 = move[0];
 	int t2 = move[1];
 	d = depth;
@@ -209,8 +220,8 @@ void AIMove(char player, int depth) {
 	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
 	
 	char pl = player == 0 ? 'G' : 'B';
-	std::cout << pl << " AI\ni = "<< move[0] / 6 <<", j = " << move[0] % 6 << '\n';
-	std::cout << "i = "<< move[1] / 6 << ", j = " << move[1] % 6 << '\n';
+	std::cout << pl << " AI\ni = "<< move[0] / PRINT_SIZE + 1 <<", j = " << move[0] % PRINT_SIZE + 1 << '\n';
+	std::cout << "i = "<< move[1] / PRINT_SIZE + 1 << ", j = " << move[1] % PRINT_SIZE + 1 << '\n';
 	std::cout << "Time: " << elapsed_secs << '\n';
 }
 
@@ -218,7 +229,7 @@ bool isEnd() {
 	if (score[0] == 0 || score[1] == 0)
 		return true;
 	int res_score = score[0] + score[1];
-	if (res_score >= 36)
+	if (res_score >= GAME_SIZE)
 		return true;
 	if (move[0] == 0 && move[1] == 0)
 		return true;
@@ -227,7 +238,7 @@ bool isEnd() {
 
 
 void startGame(char player, bool firstMove) {
-	for (int i = 0; i < 36; ++i) {
+	for (int i = 0; i < GAME_SIZE; ++i) {
 		playground[i] = '*';
 	}
 
@@ -243,9 +254,9 @@ void startGame(char player, bool firstMove) {
 	
 	// начальная расстановка
 	playground[0] = 0;
-	playground[5] = 1;
-	playground[30] = 1;
-	playground[35] = 0;
+	playground[6] = 1;
+	playground[42] = 1;
+	playground[48] = 0;
 	printPlayground();
 
 	score[player1] = 2;
@@ -274,6 +285,7 @@ void startGame(char player, bool firstMove) {
 		printMove(player1);
 	}
 
+
 	char player2_ch = player == 'G' ? 'B' : 'G';
 	if (score[player1] > score[player2])
 		cout << player << " win. Score " << score[player1] << " : " << score[player2] << '\n';
@@ -292,5 +304,5 @@ int main()
 		cout << '\n';
 	}*/
 
-	startGame('G', true);
+	startGame('B', false);
 }
